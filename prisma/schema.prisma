@@ -1,0 +1,107 @@
+// ApplyOS data model — see design doc §"minimal schema".
+// Provider: PostgreSQL (local via `npx prisma dev`, prod via Neon free tier).
+// Prisma 7 client generated to src/generated/prisma.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// A user is identified by an unguessable URL token (no passwords, no email).
+// One token == one isolated profile (the per-user-URL auth decision).
+model Profile {
+  id        String   @id @default(cuid())
+  token     String   @unique // high-entropy; lives in the URL: /{token}
+  name      String?
+  contact   Json? // { email?, phone?, location? }
+  links     Json? // { github?, linkedin?, portfolio? }
+
+  // Voice fingerprint: extracted once from pasted sample messages, injected
+  // into every generation call. Upside, not the validation gate.
+  voiceProfile Json?
+
+  experiences    Experience[]
+  projects       Project[]
+  skills         Skill[]
+  certifications Certification[]
+  resumeVersions ResumeVersion[]
+  applications   Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Experience {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title     String
+  org       String
+  dates     String? // free text e.g. "May 2025 - Jul 2025"
+  bullets   String[] // source-of-truth bullets; tailoring may reorder/filter, never invent
+
+  @@index([profileId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  stack     String[]
+  summary   String?
+  links     Json? // { repo?, demo? }
+  source    String   @default("manual") // "manual" | "github"
+
+  @@index([profileId])
+}
+
+model Skill {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  category  String? // "tech" | "product" | "consulting" | ...
+
+  @@index([profileId])
+}
+
+model Certification {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name      String
+  issuer    String?
+  date      String?
+
+  @@index([profileId])
+}
+
+// One tailored resume per JD. jdHash lets us cache: same JD -> reuse.
+model ResumeVersion {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jdHash      String
+  contentJson Json // the tailored resume structure (ordered projects, filtered skills)
+  createdAt   DateTime @default(now())
+
+  @@unique([profileId, jdHash])
+  @@index([profileId])
+}
+
+model Application {
+  id         String   @id @default(cuid())
+  profileId  String
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jd         String
+  outputType String // "resume" | "email" | "dm"
+  outcome    String? // null | "no_response" | "screening" | "rejected"
+  createdAt  DateTime @default(now())
+
+  @@index([profileId])
+}
