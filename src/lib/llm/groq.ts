@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import type { LLMProvider, CompletionOpts } from "./provider";
+import { withRetry, isTransientError } from "../retry";
 
 // Groq free tier. Llama 3.3 70B is the strongest free general model for
 // extraction + generation. Text-only (no PDF vision) — see lib/pdf.ts for why
@@ -24,13 +25,18 @@ export class GroqProvider implements LLMProvider {
   readonly name = "groq";
 
   async complete(opts: CompletionOpts): Promise<string> {
-    const res = await getClient().chat.completions.create({
-      model: DEFAULT_MODEL,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.4,
-      max_tokens: opts.maxTokens ?? 2048,
-      ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-    });
+    // Auto-retry transient API failures (rate limits, 5xx, network blips).
+    const res = await withRetry(
+      () =>
+        getClient().chat.completions.create({
+          model: DEFAULT_MODEL,
+          messages: opts.messages,
+          temperature: opts.temperature ?? 0.4,
+          max_tokens: opts.maxTokens ?? 2048,
+          ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+        }),
+      { attempts: 3, isTransient: isTransientError },
+    );
     return res.choices[0]?.message?.content ?? "";
   }
 }

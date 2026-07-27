@@ -193,17 +193,19 @@ export function ProfileEditor({
         )}
       />
 
-      {/* Skills */}
-      <section className={card}>
-        <h2 className="mb-2 font-semibold">Skills</h2>
-        <textarea
-          className={input}
-          rows={2}
-          placeholder="Comma separated (e.g. Product Strategy, Figma, SQL)"
-          value={profile.skills.map((s) => s.name).join(", ")}
-          onChange={(e) => set({ skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean).map((name) => ({ name })) })}
-        />
-      </section>
+      {/* Skills — one per box; optional group so the resume can cluster them */}
+      <ListSection
+        title="Skills"
+        items={profile.skills}
+        onAdd={() => set({ skills: [...profile.skills, { name: "", category: "" }] })}
+        onRemove={(i) => set({ skills: profile.skills.filter((_, x) => x !== i) })}
+        render={(sk, i) => (
+          <div className="grid grid-cols-2 gap-2">
+            <input className={input} placeholder="Skill (e.g. Product Strategy)" value={sk.name} onChange={(e) => { const n = [...profile.skills]; n[i] = { ...sk, name: e.target.value }; set({ skills: n }); }} />
+            <input className={input} placeholder="Group (optional, e.g. Product / Tools)" value={sk.category ?? ""} onChange={(e) => { const n = [...profile.skills]; n[i] = { ...sk, category: e.target.value }; set({ skills: n }); }} />
+          </div>
+        )}
+      />
 
       {/* Certifications */}
       <ListSection

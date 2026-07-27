@@ -1,6 +1,7 @@
 import { llm } from "./llm";
 import type { ProfileContext } from "./types";
 import { traceProseAgainstProfile, type TraceIssue } from "./validate";
+import { withRetry } from "./retry";
 
 // Read a PUBLIC Google Form's questions by scraping the page's embedded
 // FB_PUBLIC_LOAD_DATA_ blob, then generate answers in the user's voice.
@@ -17,20 +18,65 @@ export async function fetchGoogleFormQuestions(
   url: string,
 ): Promise<{ ok: boolean; questions: string[]; note?: string }> {
   if (!/docs\.google\.com\/forms/.test(url)) {
-    return { ok: false, questions: [], note: "That doesn't look like a Google Forms link." };
+    return {
+      ok: false,
+      questions: [],
+      note: "That doesn't look like a Google Form link. Paste the form's shareable link (it starts with docs.google.com/forms).",
+    };
   }
+
   let html: string;
   try {
-    const res = await fetch(url, {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; ApplyOS/1.0)" },
-      redirect: "follow",
-    });
-    if (!res.ok) {
-      return { ok: false, questions: [], note: `Couldn't open the form (HTTP ${res.status}).` };
+    // Auto-retry transient failures (network blips, timeouts, 429/5xx) up to 3x.
+    // Permission errors (401/403) are NOT retried — they won't fix themselves.
+    html = await withRetry(
+      async () => {
+        const res = await fetch(url, {
+          headers: { "user-agent": "Mozilla/5.0 (compatible; ApplyOS/1.0)" },
+          redirect: "follow",
+        });
+        if (res.status === 401 || res.status === 403) {
+          throw new PermissionError();
+        }
+        if (!res.ok) {
+          // 5xx/429 are transient (throw a status error so withRetry retries);
+          // other 4xx are permanent.
+          const err = Object.assign(new Error(`status ${res.status}`), {
+            status: res.status,
+            permanent: res.status < 500 && res.status !== 429,
+          });
+          throw err;
+        }
+        return res.text();
+      },
+      {
+        attempts: 3,
+        isTransient: (e) =>
+          !(e instanceof PermissionError) &&
+          !(e as { permanent?: boolean })?.permanent,
+      },
+    );
+  } catch (e) {
+    if (e instanceof PermissionError) {
+      return {
+        ok: false,
+        questions: [],
+        note: "This form is private. Open it, set sharing so anyone with the link can respond, then paste the link again.",
+      };
     }
-    html = await res.text();
-  } catch {
-    return { ok: false, questions: [], note: "Couldn't reach that URL." };
+    const status = (e as { status?: number })?.status;
+    if (status && status >= 400 && status < 500) {
+      return {
+        ok: false,
+        questions: [],
+        note: "We couldn't find that form. It may have been closed or the link is incomplete, double-check the link.",
+      };
+    }
+    return {
+      ok: false,
+      questions: [],
+      note: "We couldn't reach Google just now. Please try again in a moment.",
+    };
   }
 
   const questions = extractQuestions(html);
@@ -38,11 +84,13 @@ export async function fetchGoogleFormQuestions(
     return {
       ok: false,
       questions: [],
-      note: "No questions found. The form may be private (login required) or Google changed its format.",
+      note: "We couldn't read this form's questions. Make sure it's a standard Google Form that's public (anyone with the link can respond).",
     };
   }
   return { ok: true, questions };
 }
+
+class PermissionError extends Error {}
 
 // Parse FB_PUBLIC_LOAD_DATA_ = [...]; The questions live at data[1][1]; each
 // entry's title is at index 1, and entries with a null title (section breaks,
