@@ -9,9 +9,11 @@ const COOKIE = "applyos_token";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export function middleware(req: NextRequest) {
-  const { pathname, searchParams } = req.nextUrl;
+  const { pathname } = req.nextUrl;
 
-  // On a workspace URL: remember this token.
+  // On a workspace URL: remember this token so the landing can offer a
+  // one-click "Open my workspace" link. We do NOT redirect the landing —
+  // the home page is always the landing page.
   const m = pathname.match(TOKEN_RE);
   if (m) {
     const res = NextResponse.next();
@@ -21,14 +23,6 @@ export function middleware(req: NextRequest) {
       sameSite: "lax",
     });
     return res;
-  }
-
-  // On the landing: send returning users back to their workspace.
-  if (pathname === "/" && searchParams.get("new") == null) {
-    const token = req.cookies.get(COOKIE)?.value;
-    if (token) {
-      return NextResponse.redirect(new URL(`/${token}`, req.url));
-    }
   }
 
   return NextResponse.next();
