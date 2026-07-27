@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Brand } from "./Brand";
+import { ThemeToggle } from "./ThemeToggle";
 import { ResumeUploadCTA } from "./ResumeUploadCTA";
 
 export default async function Home() {
@@ -11,8 +12,10 @@ export default async function Home() {
       {/* Nav */}
       <header className="sticky top-0 z-20 border-b border-neutral-200/70 bg-white/80 backdrop-blur dark:border-neutral-800/70 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Brand />
-          <nav className="flex items-center gap-6 text-sm">
+          <Link href="/">
+            <Brand />
+          </Link>
+          <nav className="flex items-center gap-4 text-sm">
             <a href="#how" className="hidden text-neutral-500 hover:text-neutral-900 sm:block dark:hover:text-white">How it works</a>
             <a href="#features" className="hidden text-neutral-500 hover:text-neutral-900 sm:block dark:hover:text-white">Features</a>
             {token ? (
@@ -20,6 +23,7 @@ export default async function Home() {
                 Open my workspace →
               </Link>
             ) : null}
+            <ThemeToggle />
           </nav>
         </div>
       </header>
@@ -35,11 +39,11 @@ export default async function Home() {
             For students who apply to internships constantly
           </p>
           <h1 className="animate-rise max-w-3xl text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
-            Every resume, email, and form answer,{" "}
+            Every application, tailored to the role,{" "}
             <span className="bg-gradient-to-r from-indigo-500 to-amber-500 bg-clip-text text-transparent">
-              in your voice
+              in minutes, not hours
             </span>
-            , in minutes.
+            .
           </h1>
           <p className="animate-rise-2 mt-6 max-w-xl text-lg text-neutral-600 dark:text-neutral-400">
             Keep your profile updated once. ApplyOS tailors a role-specific resume,

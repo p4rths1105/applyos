@@ -36,7 +36,7 @@ export async function parseResumeText(text: string): Promise<ParsedProfile> {
     "positions (array of { title, org, dates?, location?, bullets: string[] }) — 'Position of Responsibility' / leadership / club roles, kept SEPARATE from experiences,",
     "education (array of { school, degree?, dates?, location? }),",
     "projects (array of { name, stack: string[], summary? }),",
-    "skills (array of { name, category? }),",
+    "skills (array of { name, category }) — set category to a short group label like 'Product', 'Frameworks', 'Tools', 'Technical', or 'Languages'; always assign one so skills can be grouped,",
     "certifications (array of { name, issuer?, date? }).",
     "Preserve bullet wording verbatim. If a section is absent, use an empty array.",
   ].join("\n");

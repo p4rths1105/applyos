@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { ProfileContext } from "@/lib/types";
 import { Brand } from "../Brand";
+import { ThemeToggle } from "../ThemeToggle";
 import { ProfileEditor } from "./ProfileEditor";
 import { Apply } from "./Apply";
 import { ResumeTab } from "./ResumeTab";
@@ -38,8 +39,8 @@ export function Workspace({
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       {/* Nav */}
       <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/85 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/85">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <Link href={`/${token}`}>
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-6 py-3">
+          <Link href="/" aria-label="Home">
             <Brand />
           </Link>
           <nav className="flex items-center gap-1 rounded-full bg-neutral-100 p-1 text-sm dark:bg-neutral-900">
@@ -47,7 +48,7 @@ export function Workspace({
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`rounded-full px-4 py-1.5 font-medium transition ${
+                className={`rounded-full px-3 py-1.5 font-medium transition sm:px-4 ${
                   tab === t.id
                     ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white"
                     : "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
@@ -57,6 +58,7 @@ export function Workspace({
               </button>
             ))}
           </nav>
+          <ThemeToggle />
         </div>
       </header>
 
