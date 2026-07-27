@@ -27,11 +27,13 @@ export const sampleProfile: ProfileContext = {
       name: "Contextualize",
       stack: ["TypeScript", "Chrome Extension", "Manifest V3"],
       summary: "A Chrome extension that summarises the current page in context",
+      bullets: ["Built a Chrome extension that summarises the current page in context"],
     },
     {
       name: "GitDoc",
       stack: ["TypeScript", "VS Code API"],
       summary: "A VS Code extension that auto-documents changed files",
+      bullets: ["Built a VS Code extension that auto-documents changed files"],
     },
   ],
   skills: [

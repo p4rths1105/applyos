@@ -35,7 +35,7 @@ export async function parseResumeText(text: string): Promise<ParsedProfile> {
     "experiences (array of { title, org, dates?, location?, bullets: string[] }) — jobs/internships,",
     "positions (array of { title, org, dates?, location?, bullets: string[] }) — 'Position of Responsibility' / leadership / club roles, kept SEPARATE from experiences,",
     "education (array of { school, degree?, dates?, location? }),",
-    "projects (array of { name, stack: string[], summary? }),",
+    "projects (array of { name, role?, date?, stack: string[], bullets: string[] }) — capture the FULL bullet descriptions verbatim, plus any role (e.g. 'Team Lead') and year,",
     "skills (array of { name, category }) — set category to a short group label like 'Product', 'Frameworks', 'Tools', 'Technical', or 'Languages'; always assign one so skills can be grouped,",
     "certifications (array of { name, issuer?, date? }).",
     "Preserve bullet wording verbatim. If a section is absent, use an empty array.",
@@ -86,8 +86,11 @@ function coerce(raw: string): ParsedProfile {
       projects: Array.isArray(p.projects)
         ? p.projects.map((pr) => ({
             name: str(pr?.name),
+            role: pr?.role ? str(pr.role) : undefined,
+            date: pr?.date ? str(pr.date) : undefined,
             stack: Array.isArray(pr?.stack) ? pr.stack.map(str) : [],
             summary: pr?.summary ? str(pr.summary) : undefined,
+            bullets: Array.isArray(pr?.bullets) ? pr.bullets.map(str) : [],
           }))
         : [],
       skills: Array.isArray(p.skills)

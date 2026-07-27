@@ -27,8 +27,11 @@ export interface ProfileContext {
   education: EducationItem[];
   projects: {
     name: string;
+    role?: string;
+    date?: string;
     stack: string[];
     summary?: string;
+    bullets: string[];
     links?: { repo?: string; demo?: string };
   }[];
   skills: { name: string; category?: string }[];

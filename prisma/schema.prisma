@@ -71,10 +71,14 @@ model Project {
   profileId String
   profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name      String
+  role      String? // e.g. "Team Lead"
+  date      String? // e.g. "2025"
   stack     String[]
-  summary   String?
+  summary   String? // legacy one-liner (kept for back-compat)
+  bullets   String[] // rich descriptions, like experience
   links     Json? // { repo?, demo? }
   source    String   @default("manual") // "manual" | "github"
+  order     Int      @default(0)
 
   @@index([profileId])
 }

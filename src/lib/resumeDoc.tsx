@@ -203,20 +203,27 @@ export function ResumeDocument({
 
         {r.projects.length ? (
           <Section title="Projects">
-            {r.projects.map((p, i) => (
-              <View key={i} style={s.entry} wrap={false}>
-                <View style={s.rowBetween}>
-                  <Text style={s.org}>{p.name}</Text>
-                  {p.stack.length ? <Text style={s.right}>{p.stack.join(", ")}</Text> : null}
-                </View>
-                {p.summary ? (
-                  <View style={s.bullet}>
-                    <Text style={s.bulletDot}>•</Text>
-                    <Text style={s.bulletText}>{p.summary}</Text>
+            {r.projects.map((p, i) => {
+              const right = [p.role, p.date].filter(Boolean).join("  ·  ");
+              const lines = p.bullets.length ? p.bullets : p.summary ? [p.summary] : [];
+              return (
+                <View key={i} style={s.entry} wrap={false}>
+                  <View style={s.rowBetween}>
+                    <Text style={s.org}>{p.name}</Text>
+                    {right ? <Text style={s.right}>{right}</Text> : null}
                   </View>
-                ) : null}
-              </View>
-            ))}
+                  {p.stack.length ? (
+                    <Text style={s.title}>{p.stack.join(", ")}</Text>
+                  ) : null}
+                  {lines.map((b, n) => (
+                    <View key={n} style={s.bullet}>
+                      <Text style={s.bulletDot}>•</Text>
+                      <Text style={s.bulletText}>{b}</Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            })}
           </Section>
         ) : null}
 

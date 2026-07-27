@@ -180,13 +180,15 @@ export function ProfileEditor({
       <ListSection
         title="Projects"
         items={profile.projects}
-        onAdd={() => set({ projects: [...profile.projects, { name: "", stack: [], summary: "" }] })}
+        onAdd={() => set({ projects: [...profile.projects, { name: "", role: "", date: "", stack: [], summary: "", bullets: [] }] })}
         onRemove={(i) => set({ projects: profile.projects.filter((_, x) => x !== i) })}
         render={(pr, i) => (
-          <div className="grid grid-cols-2 gap-2">
-            <input className={input} placeholder="Project name" value={pr.name} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, name: e.target.value }; set({ projects: n }); }} />
-            <input className={input} placeholder="Stack (comma separated)" value={pr.stack.join(", ")} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, stack: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }; set({ projects: n }); }} />
-            <textarea className={`${input} col-span-2`} rows={2} placeholder="One-line summary" value={pr.summary ?? ""} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, summary: e.target.value }; set({ projects: n }); }} />
+          <div className="grid grid-cols-3 gap-2">
+            <input className={`${input} col-span-3`} placeholder="Project name" value={pr.name} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, name: e.target.value }; set({ projects: n }); }} />
+            <input className={input} placeholder="Role (e.g. Team Lead)" value={pr.role ?? ""} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, role: e.target.value }; set({ projects: n }); }} />
+            <input className={input} placeholder="Year" value={pr.date ?? ""} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, date: e.target.value }; set({ projects: n }); }} />
+            <input className={input} placeholder="Stack (comma sep)" value={pr.stack.join(", ")} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, stack: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }; set({ projects: n }); }} />
+            <textarea className={`${input} col-span-3`} rows={3} placeholder="One bullet per line" value={pr.bullets.join("\n")} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, bullets: e.target.value.split("\n").filter(Boolean) }; set({ projects: n }); }} />
           </div>
         )}
       />

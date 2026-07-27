@@ -45,8 +45,11 @@ export async function loadProfileContext(
     })),
     projects: p.projects.map((pr) => ({
       name: pr.name,
+      role: pr.role ?? undefined,
+      date: pr.date ?? undefined,
       stack: pr.stack,
       summary: pr.summary ?? undefined,
+      bullets: pr.bullets,
       links: (pr.links as { repo?: string; demo?: string } | null) ?? undefined,
     })),
     skills: p.skills.map((s) => ({
@@ -119,11 +122,15 @@ export async function saveProfileContext(
           })),
         },
         projects: {
-          create: data.projects.map((pr) => ({
+          create: data.projects.map((pr, i) => ({
             name: pr.name,
+            role: pr.role,
+            date: pr.date,
             stack: pr.stack,
             summary: pr.summary,
+            bullets: pr.bullets ?? [],
             links: pr.links ?? undefined,
+            order: i,
           })),
         },
         skills: {

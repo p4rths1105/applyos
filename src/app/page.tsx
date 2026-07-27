@@ -4,8 +4,14 @@ import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
 import { ResumeUploadCTA } from "./ResumeUploadCTA";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string }>;
+}) {
   const token = (await cookies()).get("applyos_token")?.value;
+  const forceNew = (await searchParams).new != null;
+  const returning = Boolean(token) && !forceNew;
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50">
@@ -50,12 +56,39 @@ export default async function Home() {
             writes your outreach, and even drafts Google Form answers, grounded in your
             real experience. Nothing invented.
           </p>
-          <div className="animate-rise-2 mt-9">
-            <ResumeUploadCTA />
-            <p className="mt-3 text-sm text-neutral-400">
-              Drop your resume and we&apos;ll fill your profile automatically. No sign-up.
-            </p>
-          </div>
+
+          {returning ? (
+            <div className="animate-rise-2 mt-9">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-green-300 bg-green-50 px-3 py-1 text-sm font-medium text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-400">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Your profile is saved
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href={`/${token}`}
+                  className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3.5 text-base font-medium text-white shadow-lg transition hover:-translate-y-0.5 dark:bg-white dark:text-black"
+                >
+                  Open my workspace →
+                </Link>
+                <Link
+                  href="/?new=1"
+                  className="text-sm text-neutral-500 underline-offset-4 hover:underline"
+                >
+                  Not you? Start a new profile
+                </Link>
+              </div>
+              <p className="mt-3 text-sm text-neutral-400">
+                No need to re-upload, we remember your profile on this device.
+              </p>
+            </div>
+          ) : (
+            <div className="animate-rise-2 mt-9">
+              <ResumeUploadCTA />
+              <p className="mt-3 text-sm text-neutral-400">
+                Drop your resume and we&apos;ll fill your profile automatically. No sign-up.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
