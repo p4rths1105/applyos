@@ -1,16 +1,30 @@
 // Plain domain shapes used to assemble generation context. These mirror the
 // Prisma models but are decoupled so the generation service never imports the DB.
 
+export interface ExperienceItem {
+  title: string;
+  org: string;
+  dates?: string;
+  location?: string;
+  bullets: string[];
+}
+
+export interface EducationItem {
+  school: string;
+  degree?: string;
+  dates?: string;
+  location?: string;
+}
+
 export interface ProfileContext {
   name: string;
+  summary?: string;
   contact: { email?: string; phone?: string; location?: string };
   links: { github?: string; linkedin?: string; portfolio?: string };
-  experiences: {
-    title: string;
-    org: string;
-    dates?: string;
-    bullets: string[];
-  }[];
+  experiences: ExperienceItem[];
+  // Position of Responsibility — same shape as experience, separate resume section.
+  positions: ExperienceItem[];
+  education: EducationItem[];
   projects: {
     name: string;
     stack: string[];

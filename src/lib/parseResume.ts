@@ -9,9 +9,12 @@ export type ParsedProfile = Omit<ProfileContext, "voiceProfile">;
 
 const EMPTY: ParsedProfile = {
   name: "",
+  summary: "",
   contact: {},
   links: {},
   experiences: [],
+  positions: [],
+  education: [],
   projects: [],
   skills: [],
   certifications: [],
@@ -26,12 +29,16 @@ export async function parseResumeText(text: string): Promise<ParsedProfile> {
     "Leave a field empty if the text doesn't contain it.",
     "Return JSON with keys:",
     "name (string),",
+    "summary (string — the professional summary / objective, if present),",
     "contact ({ email?, phone?, location? }),",
     "links ({ github?, linkedin?, portfolio? }),",
-    "experiences (array of { title, org, dates?, bullets: string[] }),",
+    "experiences (array of { title, org, dates?, location?, bullets: string[] }) — jobs/internships,",
+    "positions (array of { title, org, dates?, location?, bullets: string[] }) — 'Position of Responsibility' / leadership / club roles, kept SEPARATE from experiences,",
+    "education (array of { school, degree?, dates?, location? }),",
     "projects (array of { name, stack: string[], summary? }),",
     "skills (array of { name, category? }),",
     "certifications (array of { name, issuer?, date? }).",
+    "Preserve bullet wording verbatim. If a section is absent, use an empty array.",
   ].join("\n");
 
   const raw = await llm().complete({
@@ -54,16 +61,26 @@ function coerce(raw: string): ParsedProfile {
       .replace(/```$/, "")
       .trim();
     const p = JSON.parse(cleaned) as Partial<ParsedProfile>;
+    const mapExp = (e: Partial<ParsedProfile["experiences"][number]> | undefined) => ({
+      title: str(e?.title),
+      org: str(e?.org),
+      dates: e?.dates ? str(e.dates) : undefined,
+      location: e?.location ? str(e.location) : undefined,
+      bullets: Array.isArray(e?.bullets) ? e!.bullets!.map(str) : [],
+    });
     return {
       name: str(p.name),
+      summary: p.summary ? str(p.summary) : "",
       contact: p.contact ?? {},
       links: p.links ?? {},
-      experiences: Array.isArray(p.experiences)
-        ? p.experiences.map((e) => ({
-            title: str(e?.title),
-            org: str(e?.org),
+      experiences: Array.isArray(p.experiences) ? p.experiences.map(mapExp) : [],
+      positions: Array.isArray(p.positions) ? p.positions.map(mapExp) : [],
+      education: Array.isArray(p.education)
+        ? p.education.map((e) => ({
+            school: str(e?.school),
+            degree: e?.degree ? str(e.degree) : undefined,
             dates: e?.dates ? str(e.dates) : undefined,
-            bullets: Array.isArray(e?.bullets) ? e.bullets.map(str) : [],
+            location: e?.location ? str(e.location) : undefined,
           }))
         : [],
       projects: Array.isArray(p.projects)

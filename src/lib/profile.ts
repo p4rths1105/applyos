@@ -13,7 +13,8 @@ export async function loadProfileContext(
   const p = await prisma.profile.findUnique({
     where: { token },
     include: {
-      experiences: true,
+      experiences: { orderBy: { order: "asc" } },
+      education: { orderBy: { order: "asc" } },
       projects: true,
       skills: true,
       certifications: true,
@@ -21,15 +22,26 @@ export async function loadProfileContext(
   });
   if (!p) return null;
 
+  const mapExp = (e: (typeof p.experiences)[number]) => ({
+    title: e.title,
+    org: e.org,
+    dates: e.dates ?? undefined,
+    location: e.location ?? undefined,
+    bullets: e.bullets,
+  });
+
   return {
     name: p.name ?? "",
+    summary: p.summary ?? undefined,
     contact: (p.contact as ProfileContext["contact"]) ?? {},
     links: (p.links as ProfileContext["links"]) ?? {},
-    experiences: p.experiences.map((e) => ({
-      title: e.title,
-      org: e.org,
+    experiences: p.experiences.filter((e) => e.kind !== "position").map(mapExp),
+    positions: p.experiences.filter((e) => e.kind === "position").map(mapExp),
+    education: p.education.map((e) => ({
+      school: e.school,
+      degree: e.degree ?? undefined,
       dates: e.dates ?? undefined,
-      bullets: e.bullets,
+      location: e.location ?? undefined,
     })),
     projects: p.projects.map((pr) => ({
       name: pr.name,
@@ -59,8 +71,30 @@ export async function saveProfileContext(
   const p = await prisma.profile.findUnique({ where: { token } });
   if (!p) throw new Error("profile not found");
 
+  const expCreate = [
+    ...data.experiences.map((e, i) => ({
+      title: e.title,
+      org: e.org,
+      dates: e.dates,
+      location: e.location,
+      kind: "experience",
+      order: i,
+      bullets: e.bullets,
+    })),
+    ...data.positions.map((e, i) => ({
+      title: e.title,
+      org: e.org,
+      dates: e.dates,
+      location: e.location,
+      kind: "position",
+      order: i,
+      bullets: e.bullets,
+    })),
+  ];
+
   await prisma.$transaction([
     prisma.experience.deleteMany({ where: { profileId: p.id } }),
+    prisma.education.deleteMany({ where: { profileId: p.id } }),
     prisma.project.deleteMany({ where: { profileId: p.id } }),
     prisma.skill.deleteMany({ where: { profileId: p.id } }),
     prisma.certification.deleteMany({ where: { profileId: p.id } }),
@@ -68,17 +102,20 @@ export async function saveProfileContext(
       where: { id: p.id },
       data: {
         name: data.name,
+        summary: data.summary,
         contact: asJson(data.contact),
         links: asJson(data.links),
         ...(data.voiceProfile !== undefined
           ? { voiceProfile: asJson(data.voiceProfile) }
           : {}),
-        experiences: {
-          create: data.experiences.map((e) => ({
-            title: e.title,
-            org: e.org,
+        experiences: { create: expCreate },
+        education: {
+          create: data.education.map((e, i) => ({
+            school: e.school,
+            degree: e.degree,
             dates: e.dates,
-            bullets: e.bullets,
+            location: e.location,
+            order: i,
           })),
         },
         projects: {

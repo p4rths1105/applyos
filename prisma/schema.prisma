@@ -17,6 +17,7 @@ model Profile {
   id        String   @id @default(cuid())
   token     String   @unique // high-entropy; lives in the URL: /{token}
   name      String?
+  summary   String? // professional summary / headline
   contact   Json? // { email?, phone?, location? }
   links     Json? // { github?, linkedin?, portfolio? }
 
@@ -25,6 +26,7 @@ model Profile {
   voiceProfile Json?
 
   experiences    Experience[]
+  education      Education[]
   projects       Project[]
   skills         Skill[]
   certifications Certification[]
@@ -42,7 +44,24 @@ model Experience {
   title     String
   org       String
   dates     String? // free text e.g. "May 2025 - Jul 2025"
+  location  String?
+  // "experience" or "position" (Position of Responsibility) — same shape, two resume sections.
+  kind      String   @default("experience")
+  order     Int      @default(0)
   bullets   String[] // source-of-truth bullets; tailoring may reorder/filter, never invent
+
+  @@index([profileId])
+}
+
+model Education {
+  id        String  @id @default(cuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  school    String
+  degree    String?
+  dates     String?
+  location  String?
+  order     Int     @default(0)
 
   @@index([profileId])
 }

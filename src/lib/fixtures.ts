@@ -3,6 +3,7 @@ import type { ProfileContext } from "./types";
 // Shared test/eval fixture: a realistic student profile.
 export const sampleProfile: ProfileContext = {
   name: "Rishav Dewan",
+  summary: "Product-minded builder focused on user problems and shipping.",
   contact: { email: "rishav@example.com", location: "Sonipat, IN" },
   links: { github: "https://github.com/rishav" },
   experiences: [
@@ -10,11 +11,16 @@ export const sampleProfile: ProfileContext = {
       title: "Product Intern",
       org: "Arthakram",
       dates: "May 2025 - Jul 2025",
+      location: "Sonipat, IN",
       bullets: [
         "Shipped an internal analytics dashboard used by the ops team",
         "Ran 12 user interviews to scope the onboarding flow",
       ],
     },
+  ],
+  positions: [],
+  education: [
+    { school: "Rishihood University", degree: "B.Tech CS & AI", dates: "2025-2029" },
   ],
   projects: [
     {

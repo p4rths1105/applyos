@@ -1,21 +1,21 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { ProfileContext } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import type { ProfileContext, ExperienceItem } from "@/lib/types";
 import {
-  parseResumeAction,
+  importResumeAction,
   saveProfileAction,
   extractVoiceAction,
 } from "../actions";
-import { ResumePreview } from "./ResumePreview";
-import type { TailoredResume } from "@/lib/types";
 
 type Editable = Omit<ProfileContext, "voiceProfile">;
 
 const input =
-  "w-full rounded border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700";
+  "w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700";
 const label = "block text-xs font-medium text-neutral-500 mb-1";
-const card = "rounded-lg border border-neutral-200 p-4 dark:border-neutral-800";
+const card =
+  "rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900";
 
 export function ProfileEditor({
   token,
@@ -30,6 +30,7 @@ export function ProfileEditor({
   onChange: (p: ProfileContext) => void;
   onVoiceSaved: () => void;
 }) {
+  const router = useRouter();
   const [saving, startSave] = useTransition();
   const [parsing, startParse] = useTransition();
   const [savedMsg, setSavedMsg] = useState("");
@@ -38,15 +39,18 @@ export function ProfileEditor({
 
   const set = (patch: Partial<Editable>) => onChange({ ...profile, ...patch });
 
-  function uploadResume(form: FormData) {
+  function uploadResume(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append("resume", f);
     startParse(async () => {
       setParseNote("");
-      const res = await parseResumeAction(token, form);
-      if (res.note) setParseNote(res.note);
-      if (res.ok) {
-        // Merge draft into current profile so the user reviews before saving.
-        onChange({ ...profile, ...res.draft, voiceProfile: profile.voiceProfile });
-        setParseNote("Parsed. Review everything below, then Save.");
+      const res = await importResumeAction(token, fd);
+      if (!res.ok) setParseNote(res.note ?? "Couldn't read that PDF.");
+      else {
+        setParseNote("Imported. Review below and Save any edits.");
+        router.refresh();
       }
     });
   }
@@ -57,289 +61,172 @@ export function ProfileEditor({
       const { voiceProfile, ...editable } = profile;
       void voiceProfile;
       await saveProfileAction(token, editable);
-      setSavedMsg("Saved.");
+      setSavedMsg("Saved ✓");
+      router.refresh();
     });
   }
 
   return (
-    <div className="space-y-6">
-      {/* Resume upload */}
-      <section className={card}>
-        <h2 className="mb-2 font-semibold">1. Upload your resume (optional)</h2>
-        <p className="mb-3 text-sm text-neutral-400">
-          We extract the text and pre-fill the fields. You review everything before saving.
-        </p>
-        <form action={uploadResume} className="flex items-center gap-3">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
+          <p className="text-sm text-neutral-500">
+            Your single source of truth. Everything is generated from this.
+          </p>
+        </div>
+        <div>
           <input
             ref={fileRef}
             type="file"
             name="resume"
             accept="application/pdf"
-            className="text-sm"
+            className="hidden"
+            onChange={uploadResume}
           />
           <button
-            type="submit"
+            onClick={() => fileRef.current?.click()}
             disabled={parsing}
-            className="rounded bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-neutral-700"
           >
-            {parsing ? "Parsing…" : "Parse PDF"}
+            {parsing ? "Reading…" : "Import from PDF"}
           </button>
-        </form>
-        {parseNote && <p className="mt-2 text-sm text-amber-600">{parseNote}</p>}
-      </section>
+        </div>
+      </div>
+      {parseNote && <p className="text-sm text-amber-600">{parseNote}</p>}
 
       {/* Basics */}
       <section className={card}>
-        <h2 className="mb-3 font-semibold">2. Basics</h2>
+        <h2 className="mb-3 font-semibold">Basics</h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <label className={label}>Name</label>
-            <input
+            <input className={input} value={profile.name} onChange={(e) => set({ name: e.target.value })} />
+          </div>
+          <div className="col-span-2">
+            <label className={label}>Professional summary</label>
+            <textarea
               className={input}
-              value={profile.name}
-              onChange={(e) => set({ name: e.target.value })}
+              rows={2}
+              value={profile.summary ?? ""}
+              onChange={(e) => set({ summary: e.target.value })}
+              placeholder="One or two lines on who you are and what you do."
             />
           </div>
           <div>
             <label className={label}>Email</label>
-            <input
-              className={input}
-              value={profile.contact.email ?? ""}
-              onChange={(e) =>
-                set({ contact: { ...profile.contact, email: e.target.value } })
-              }
-            />
+            <input className={input} value={profile.contact.email ?? ""} onChange={(e) => set({ contact: { ...profile.contact, email: e.target.value } })} />
+          </div>
+          <div>
+            <label className={label}>Phone</label>
+            <input className={input} value={profile.contact.phone ?? ""} onChange={(e) => set({ contact: { ...profile.contact, phone: e.target.value } })} />
           </div>
           <div>
             <label className={label}>Location</label>
-            <input
-              className={input}
-              value={profile.contact.location ?? ""}
-              onChange={(e) =>
-                set({ contact: { ...profile.contact, location: e.target.value } })
-              }
-            />
+            <input className={input} value={profile.contact.location ?? ""} onChange={(e) => set({ contact: { ...profile.contact, location: e.target.value } })} />
           </div>
           <div>
             <label className={label}>GitHub</label>
-            <input
-              className={input}
-              value={profile.links.github ?? ""}
-              onChange={(e) =>
-                set({ links: { ...profile.links, github: e.target.value } })
-              }
-            />
+            <input className={input} value={profile.links.github ?? ""} onChange={(e) => set({ links: { ...profile.links, github: e.target.value } })} />
           </div>
           <div>
             <label className={label}>LinkedIn</label>
-            <input
-              className={input}
-              value={profile.links.linkedin ?? ""}
-              onChange={(e) =>
-                set({ links: { ...profile.links, linkedin: e.target.value } })
-              }
-            />
+            <input className={input} value={profile.links.linkedin ?? ""} onChange={(e) => set({ links: { ...profile.links, linkedin: e.target.value } })} />
+          </div>
+          <div>
+            <label className={label}>Portfolio</label>
+            <input className={input} value={profile.links.portfolio ?? ""} onChange={(e) => set({ links: { ...profile.links, portfolio: e.target.value } })} />
           </div>
         </div>
       </section>
 
-      {/* Experiences */}
+      {/* Education */}
       <ListSection
-        title="3. Experience"
-        items={profile.experiences}
-        onAdd={() =>
-          set({
-            experiences: [
-              ...profile.experiences,
-              { title: "", org: "", dates: "", bullets: [] },
-            ],
-          })
-        }
-        onRemove={(i) =>
-          set({ experiences: profile.experiences.filter((_, x) => x !== i) })
-        }
-        render={(exp, i) => (
+        title="Education"
+        items={profile.education}
+        onAdd={() => set({ education: [...profile.education, { school: "", degree: "", dates: "", location: "" }] })}
+        onRemove={(i) => set({ education: profile.education.filter((_, x) => x !== i) })}
+        render={(ed, i) => (
           <div className="grid grid-cols-2 gap-2">
-            <input
-              className={input}
-              placeholder="Title"
-              value={exp.title}
-              onChange={(e) => {
-                const next = [...profile.experiences];
-                next[i] = { ...exp, title: e.target.value };
-                set({ experiences: next });
-              }}
-            />
-            <input
-              className={input}
-              placeholder="Organisation"
-              value={exp.org}
-              onChange={(e) => {
-                const next = [...profile.experiences];
-                next[i] = { ...exp, org: e.target.value };
-                set({ experiences: next });
-              }}
-            />
-            <input
-              className={`${input} col-span-2`}
-              placeholder="Dates (e.g. May 2025 - Jul 2025)"
-              value={exp.dates ?? ""}
-              onChange={(e) => {
-                const next = [...profile.experiences];
-                next[i] = { ...exp, dates: e.target.value };
-                set({ experiences: next });
-              }}
-            />
-            <textarea
-              className={`${input} col-span-2`}
-              placeholder="One bullet per line"
-              rows={3}
-              value={exp.bullets.join("\n")}
-              onChange={(e) => {
-                const next = [...profile.experiences];
-                next[i] = { ...exp, bullets: e.target.value.split("\n").filter(Boolean) };
-                set({ experiences: next });
-              }}
-            />
+            <input className={input} placeholder="School" value={ed.school} onChange={(e) => { const n = [...profile.education]; n[i] = { ...ed, school: e.target.value }; set({ education: n }); }} />
+            <input className={input} placeholder="Degree" value={ed.degree ?? ""} onChange={(e) => { const n = [...profile.education]; n[i] = { ...ed, degree: e.target.value }; set({ education: n }); }} />
+            <input className={input} placeholder="Dates" value={ed.dates ?? ""} onChange={(e) => { const n = [...profile.education]; n[i] = { ...ed, dates: e.target.value }; set({ education: n }); }} />
+            <input className={input} placeholder="Location" value={ed.location ?? ""} onChange={(e) => { const n = [...profile.education]; n[i] = { ...ed, location: e.target.value }; set({ education: n }); }} />
           </div>
         )}
       />
 
+      {/* Experience */}
+      <ExpSection
+        title="Experience"
+        items={profile.experiences}
+        input={input}
+        onAdd={() => set({ experiences: [...profile.experiences, { title: "", org: "", dates: "", location: "", bullets: [] }] })}
+        onRemove={(i) => set({ experiences: profile.experiences.filter((_, x) => x !== i) })}
+        onEdit={(i, patch) => { const n = [...profile.experiences]; n[i] = { ...n[i], ...patch }; set({ experiences: n }); }}
+      />
+
+      {/* Positions of Responsibility */}
+      <ExpSection
+        title="Position of Responsibility"
+        items={profile.positions}
+        input={input}
+        onAdd={() => set({ positions: [...profile.positions, { title: "", org: "", dates: "", location: "", bullets: [] }] })}
+        onRemove={(i) => set({ positions: profile.positions.filter((_, x) => x !== i) })}
+        onEdit={(i, patch) => { const n = [...profile.positions]; n[i] = { ...n[i], ...patch }; set({ positions: n }); }}
+      />
+
       {/* Projects */}
       <ListSection
-        title="4. Projects"
+        title="Projects"
         items={profile.projects}
-        onAdd={() =>
-          set({
-            projects: [...profile.projects, { name: "", stack: [], summary: "" }],
-          })
-        }
-        onRemove={(i) =>
-          set({ projects: profile.projects.filter((_, x) => x !== i) })
-        }
+        onAdd={() => set({ projects: [...profile.projects, { name: "", stack: [], summary: "" }] })}
+        onRemove={(i) => set({ projects: profile.projects.filter((_, x) => x !== i) })}
         render={(pr, i) => (
           <div className="grid grid-cols-2 gap-2">
-            <input
-              className={input}
-              placeholder="Project name"
-              value={pr.name}
-              onChange={(e) => {
-                const next = [...profile.projects];
-                next[i] = { ...pr, name: e.target.value };
-                set({ projects: next });
-              }}
-            />
-            <input
-              className={input}
-              placeholder="Stack (comma separated)"
-              value={pr.stack.join(", ")}
-              onChange={(e) => {
-                const next = [...profile.projects];
-                next[i] = {
-                  ...pr,
-                  stack: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                };
-                set({ projects: next });
-              }}
-            />
-            <textarea
-              className={`${input} col-span-2`}
-              placeholder="One-line summary"
-              rows={2}
-              value={pr.summary ?? ""}
-              onChange={(e) => {
-                const next = [...profile.projects];
-                next[i] = { ...pr, summary: e.target.value };
-                set({ projects: next });
-              }}
-            />
+            <input className={input} placeholder="Project name" value={pr.name} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, name: e.target.value }; set({ projects: n }); }} />
+            <input className={input} placeholder="Stack (comma separated)" value={pr.stack.join(", ")} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, stack: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }; set({ projects: n }); }} />
+            <textarea className={`${input} col-span-2`} rows={2} placeholder="One-line summary" value={pr.summary ?? ""} onChange={(e) => { const n = [...profile.projects]; n[i] = { ...pr, summary: e.target.value }; set({ projects: n }); }} />
           </div>
         )}
       />
 
       {/* Skills */}
       <section className={card}>
-        <h2 className="mb-2 font-semibold">5. Skills</h2>
+        <h2 className="mb-2 font-semibold">Skills</h2>
         <textarea
           className={input}
           rows={2}
-          placeholder="Comma separated (e.g. TypeScript, React, User Research)"
+          placeholder="Comma separated (e.g. Product Strategy, Figma, SQL)"
           value={profile.skills.map((s) => s.name).join(", ")}
-          onChange={(e) =>
-            set({
-              skills: e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((name) => ({ name })),
-            })
-          }
+          onChange={(e) => set({ skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean).map((name) => ({ name })) })}
         />
       </section>
 
       {/* Certifications */}
       <ListSection
-        title="6. Certifications"
+        title="Certifications"
         items={profile.certifications}
-        onAdd={() =>
-          set({
-            certifications: [
-              ...profile.certifications,
-              { name: "", issuer: "", date: "" },
-            ],
-          })
-        }
-        onRemove={(i) =>
-          set({ certifications: profile.certifications.filter((_, x) => x !== i) })
-        }
+        onAdd={() => set({ certifications: [...profile.certifications, { name: "", issuer: "", date: "" }] })}
+        onRemove={(i) => set({ certifications: profile.certifications.filter((_, x) => x !== i) })}
         render={(c, i) => (
           <div className="grid grid-cols-3 gap-2">
-            <input
-              className={input}
-              placeholder="Name"
-              value={c.name}
-              onChange={(e) => {
-                const next = [...profile.certifications];
-                next[i] = { ...c, name: e.target.value };
-                set({ certifications: next });
-              }}
-            />
-            <input
-              className={input}
-              placeholder="Issuer"
-              value={c.issuer ?? ""}
-              onChange={(e) => {
-                const next = [...profile.certifications];
-                next[i] = { ...c, issuer: e.target.value };
-                set({ certifications: next });
-              }}
-            />
-            <input
-              className={input}
-              placeholder="Year"
-              value={c.date ?? ""}
-              onChange={(e) => {
-                const next = [...profile.certifications];
-                next[i] = { ...c, date: e.target.value };
-                set({ certifications: next });
-              }}
-            />
+            <input className={input} placeholder="Name" value={c.name} onChange={(e) => { const n = [...profile.certifications]; n[i] = { ...c, name: e.target.value }; set({ certifications: n }); }} />
+            <input className={input} placeholder="Issuer" value={c.issuer ?? ""} onChange={(e) => { const n = [...profile.certifications]; n[i] = { ...c, issuer: e.target.value }; set({ certifications: n }); }} />
+            <input className={input} placeholder="Year" value={c.date ?? ""} onChange={(e) => { const n = [...profile.certifications]; n[i] = { ...c, date: e.target.value }; set({ certifications: n }); }} />
           </div>
         )}
       />
 
       {/* Voice */}
-      <VoiceSection token={token} hasVoice={hasVoice} onSaved={onVoiceSaved} />
-
-      {/* Full resume */}
-      <FullResume profile={profile} />
+      <VoiceSection token={token} hasVoice={hasVoice} onSaved={onVoiceSaved} input={input} card={card} />
 
       {/* Save */}
       <div className="sticky bottom-4 flex items-center gap-3">
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-lg bg-black px-5 py-2.5 font-medium text-white shadow disabled:opacity-50 dark:bg-white dark:text-black"
+          className="rounded-xl bg-black px-6 py-2.5 font-medium text-white shadow-lg disabled:opacity-50 dark:bg-white dark:text-black"
         >
           {saving ? "Saving…" : "Save profile"}
         </button>
@@ -349,40 +236,37 @@ export function ProfileEditor({
   );
 }
 
-// A general (non-JD) resume from the whole profile: everything, in profile order.
-function FullResume({ profile }: { profile: ProfileContext }) {
-  const [show, setShow] = useState(false);
-  const full: TailoredResume = {
-    orderedProjectNames: profile.projects.map((p) => p.name),
-    orderedExperienceTitles: profile.experiences.map((e) => `${e.title} @ ${e.org}`),
-    includedSkillNames: profile.skills.map((s) => s.name),
-  };
+function ExpSection({
+  title,
+  items,
+  input,
+  onAdd,
+  onRemove,
+  onEdit,
+}: {
+  title: string;
+  items: ExperienceItem[];
+  input: string;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+  onEdit: (i: number, patch: Partial<ExperienceItem>) => void;
+}) {
   return (
-    <section className={card}>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-semibold">Your full resume</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShow((s) => !s)}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-sm dark:border-neutral-700"
-          >
-            {show ? "Hide" : "Preview"}
-          </button>
-          {show && (
-            <button
-              onClick={() => window.print()}
-              className="rounded bg-black px-3 py-1.5 text-sm text-white dark:bg-white dark:text-black"
-            >
-              Download / Print to PDF
-            </button>
-          )}
+    <ListSection
+      title={title}
+      items={items}
+      onAdd={onAdd}
+      onRemove={onRemove}
+      render={(e, i) => (
+        <div className="grid grid-cols-2 gap-2">
+          <input className={input} placeholder="Role / title" value={e.title} onChange={(ev) => onEdit(i, { title: ev.target.value })} />
+          <input className={input} placeholder="Organisation" value={e.org} onChange={(ev) => onEdit(i, { org: ev.target.value })} />
+          <input className={input} placeholder="Dates" value={e.dates ?? ""} onChange={(ev) => onEdit(i, { dates: ev.target.value })} />
+          <input className={input} placeholder="Location" value={e.location ?? ""} onChange={(ev) => onEdit(i, { location: ev.target.value })} />
+          <textarea className={`${input} col-span-2`} rows={3} placeholder="One bullet per line" value={e.bullets.join("\n")} onChange={(ev) => onEdit(i, { bullets: ev.target.value.split("\n").filter(Boolean) })} />
         </div>
-      </div>
-      <p className="mb-3 text-xs text-neutral-400">
-        A general resume from your whole profile. Save first to include your latest edits.
-      </p>
-      {show && <ResumePreview profile={profile} resume={full} />}
-    </section>
+      )}
+    />
   );
 }
 
@@ -403,21 +287,16 @@ function ListSection<T>({
     <section className={card}>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold">{title}</h2>
-        <button onClick={onAdd} className="text-sm text-blue-600 hover:underline">
+        <button onClick={onAdd} className="text-sm font-medium text-blue-600 hover:underline">
           + Add
         </button>
       </div>
-      <div className="space-y-4">
-        {items.length === 0 && (
-          <p className="text-sm text-neutral-400">Nothing yet.</p>
-        )}
+      <div className="space-y-3">
+        {items.length === 0 && <p className="text-sm text-neutral-400">Nothing yet.</p>}
         {items.map((item, i) => (
-          <div key={i} className="rounded border border-neutral-200 p-3 dark:border-neutral-800">
+          <div key={i} className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
             {render(item, i)}
-            <button
-              onClick={() => onRemove(i)}
-              className="mt-2 text-xs text-red-500 hover:underline"
-            >
+            <button onClick={() => onRemove(i)} className="mt-2 text-xs text-red-500 hover:underline">
               Remove
             </button>
           </div>
@@ -431,10 +310,14 @@ function VoiceSection({
   token,
   hasVoice,
   onSaved,
+  input,
+  card,
 }: {
   token: string;
   hasVoice: boolean;
   onSaved: () => void;
+  input: string;
+  card: string;
 }) {
   const [samples, setSamples] = useState("");
   const [busy, start] = useTransition();
@@ -456,10 +339,10 @@ function VoiceSection({
 
   return (
     <section className={card}>
-      <h2 className="mb-2 font-semibold">7. Voice (optional)</h2>
+      <h2 className="mb-2 font-semibold">Voice (optional)</h2>
       <p className="mb-2 text-sm text-neutral-400">
-        Paste 2&ndash;3 real messages you&apos;ve sent (separate them with a line of{" "}
-        <code>---</code>). We learn your tone so emails sound like you.
+        Paste 2&ndash;3 real messages you&apos;ve sent (separate with a line of{" "}
+        <code>---</code>). Emails and DMs will sound like you.
       </p>
       <textarea
         className={input}
@@ -472,7 +355,7 @@ function VoiceSection({
         <button
           onClick={save}
           disabled={busy}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white disabled:opacity-50 dark:bg-neutral-200 dark:text-black"
+          className="rounded-lg bg-neutral-800 px-3 py-1.5 text-sm text-white disabled:opacity-50 dark:bg-neutral-200 dark:text-black"
         >
           {busy ? "Analysing…" : "Save voice"}
         </button>

@@ -173,12 +173,15 @@ function voiceInstruction(v: NonNullable<ProfileContext["voiceProfile"]>): strin
 function profileForPrompt(p: ProfileContext) {
   return {
     name: p.name,
+    summary: p.summary,
     links: p.links,
     experiences: p.experiences.map((e) => ({
       key: `${e.title} @ ${e.org}`,
       dates: e.dates,
       bullets: e.bullets,
     })),
+    positions: p.positions.map((e) => `${e.title} @ ${e.org}`),
+    education: p.education.map((e) => `${e.degree ?? ""} ${e.school}`.trim()),
     projects: p.projects.map((pr) => ({
       name: pr.name,
       stack: pr.stack,

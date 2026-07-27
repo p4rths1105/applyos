@@ -28,6 +28,28 @@ export async function createProfileAction(): Promise<void> {
   redirect(`/${token}`);
 }
 
+// Landing "Add your current resume": create a workspace, parse the uploaded
+// resume into it, then jump straight into the workspace. No separate parse step.
+export async function createFromResumeAction(formData: FormData): Promise<void> {
+  const token = newUserToken();
+  await prisma.profile.create({ data: { token } });
+
+  const file = formData.get("resume");
+  if (file instanceof File && file.size > 0 && file.size <= 6 * 1024 * 1024) {
+    try {
+      const buf = Buffer.from(await file.arrayBuffer());
+      const text = await extractPdfText(buf);
+      if (text) {
+        const draft = await parseResumeText(text);
+        await saveProfileContext(token, draft);
+      }
+    } catch {
+      // Non-fatal: land in an empty workspace and let them fill it in.
+    }
+  }
+  redirect(`/${token}`);
+}
+
 // Upload -> extract text -> structure. Returns a DRAFT for the user to review;
 // does NOT save. Empty/garbled PDFs fall back to an empty draft (manual entry).
 export async function parseResumeAction(
@@ -59,6 +81,30 @@ export async function parseResumeAction(
       draft: emptyDraft(),
       note: "Couldn't read that PDF. Fill in the fields below instead.",
     };
+  }
+}
+
+// Resume tab: upload a PDF, parse it, and SAVE it into this profile (replaces
+// the profile with the parsed content). Used by "add" and "change resume".
+export async function importResumeAction(
+  token: string,
+  formData: FormData,
+): Promise<{ ok: boolean; note?: string }> {
+  const file = formData.get("resume");
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, note: "No file received." };
+  if (file.size > 6 * 1024 * 1024)
+    return { ok: false, note: "File is larger than 6MB." };
+  try {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const text = await extractPdfText(buf);
+    if (!text)
+      return { ok: false, note: "Couldn't read text from that PDF (scanned image?)." };
+    const draft = await parseResumeText(text);
+    await saveProfileContext(token, draft);
+    return { ok: true };
+  } catch {
+    return { ok: false, note: "Couldn't read that PDF." };
   }
 }
 
@@ -141,9 +187,12 @@ export async function googleFormAnswersAction(
 function emptyDraft(): ParsedProfile {
   return {
     name: "",
+    summary: "",
     contact: {},
     links: {},
     experiences: [],
+    positions: [],
+    education: [],
     projects: [],
     skills: [],
     certifications: [],
