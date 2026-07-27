@@ -53,12 +53,11 @@ export async function parseResumeAction(
     }
     const draft = await parseResumeText(text);
     return { ok: true, draft };
-  } catch (e) {
-    // Temporary: surface the real error so we can diagnose prod failures.
+  } catch {
     return {
       ok: false,
       draft: emptyDraft(),
-      note: `PDF error: ${(e as Error)?.message ?? String(e)}`.slice(0, 300),
+      note: "Couldn't read that PDF. Fill in the fields below instead.",
     };
   }
 }
